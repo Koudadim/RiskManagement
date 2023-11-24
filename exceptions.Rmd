@@ -1,0 +1,104 @@
+---
+title: "exceptions"
+author: "Koudadim Olivier TRAORE"
+date: "2023-10-17"
+output: html_document
+---
+
+# Nous cherchons à déterminer le nombre d'exception en gestion de risque. 
+# Une exception est la date à laquelle est observé un dépassement du niveau de risque prévu.
+# En gestion de risque le seuil est de 1% c-à-d qu'on a une seule chance sur 100 de se tromper.Dans ce cas le nombre d'exception suit une lui de Bernoulli de paramètres p = 0.01.
+# Le nombre d'exceptions  X sur une période de N = 250 jours ouvrés, le nombre d'exception suit une loi binomiale B(N, p)
+
+```{r}
+require(graphics)
+p=0.01
+N=250
+n=10
+# Compute P(X < n) for X Binomial(N,p)
+for (i in 1:10){
+  print(i)
+  print(sum(dbinom(0:i, N, p)))
+}
+
+```
+
+```{r}
+pnorm(q=c(-0.1), mean = 0.1, sd = 0.35, lower.tail = TRUE, log.p = FALSE)
+```
+
+
+```{r}
+
+qnorm(0.99, mean = 0, sd = 80, lower.tail = TRUE, log.p = FALSE)
+```
+
+
+```{r}
+x <- - qnorm(0.05, mean = 0.0015, sd = 0.0235, lower.tail = TRUE, log.p = FALSE)
+VaR <- x*sqrt(10**6)
+```
+
+
+```{r}
+VaR5 <- qnorm(0.95, mean = 0.0015, sd = 0.0235, lower.tail = TRUE, log.p = FALSE)-0.0015
+VaR <- c(VaR5)
+VaR
+```
+
+
+```{r}
+sigma_A <- 0.015
+sigma_B <- 0.0235
+rho_AB <- -0.25
+S_A <- 975000
+S_B <- 525000
+p_A <- 1
+p_B <- 1
+
+PnL <- sigma_A^2 * p_A^2 * S_A^2 + sigma_B^2 * p_B^2 * S_B^2 + 2*(-0.25)*sigma_A*sigma_B*p_A*p_B * S_A * S_B
+
+q_alpha <- qnorm(0.05, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE)
+
+VaR <- -q_alpha * sqrt(PnL)
+VaR
+
+
+
+```
+
+```{r}
+
+Rho <- seq(from = -1, to = 1, by = 0.1)
+
+VaR <- 1:length(Rho)
+
+q_alpha <- qnorm(0.05, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE)
+
+i <- 1
+
+VaR_A <- - q_alpha * p_A * sigma_A * S_A
+VaR_B <- - q_alpha * p_B * sigma_B * S_B
+som_VaR <- VaR_A + VaR_B
+
+Gain <- rep(0, times = length(Rho))
+
+for (corr in Rho)
+{
+  PnL <- sigma_A^2 * p_A^2 * S_A^2 + sigma_B^2 * p_B^2 * S_B^2+     2*corr*sigma_A*sigma_B*p_A*p_B * S_A * S_B
+  VaR[i] <- - q_alpha * sqrt(PnL)
+  
+  Gain[i] <- som_VaR - VaR[i]
+  
+  i <- i+1
+}
+```
+
+
+
+```{r}
+
+plot(Rho, Gain, type = "b", main = "Représentation des gains de diversification en fonction des corrélation" )
+```
+
+Le gain de diversification est ainsi une fonction décroissante des coefficicients de corrélation.

@@ -1,0 +1,133 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+
+
+# Une fonction de calcul de la VaR analytique qui prend en arguments:
+
+## alpha : le seuil
+## Composition : Vecteur des nombres des différentes catégories de titres du portefeuille
+## CorrMatrix : Matrice de corrélation des titres du portefeuille 
+## Volatilities : Vecteur des volatiltés des titres du portefeuille
+## Prices : Vecteur des prix des titres du portefeuille
+## Profit : Les profits moyens des titres
+
+```{r}
+Analytic_VaR <- function(alpha, Composition, CorrMatrix, Volatilities,                           Prices, Profit)
+{
+  PnL <- 0
+  Portfolio_profit <- 0
+  Index <- 1:length(Composition)
+  for (i in Index)
+  {
+    for (j in Index)
+    {
+      PnL = PnL + CorrMatrix[i, j]*Volatilities[i] * Volatilities[j] *             Composition[i] * Composition[j] * Prices[i] * Prices[j]
+    }
+    Portfolio_profit <- Portfolio_profit + Composition[i] * Prices[i] *                         Profit[i]
+    
+  }
+  
+  Sigma <- sqrt(PnL)
+  q_alpha <- qnorm(1-alpha, mean = 0, sd = 1)
+  VaR <- q_alpha * Sigma - Portfolio_profit
+  return(VaR)
+}
+```
+
+
+```{r}
+Composition <- c(2, 4, 2)
+Prices <- c(100, 50, 50)
+Volatilities <- c(0.2, 0.2, 0.4) # volatilités d'une années de trading (260 jours)
+CorrMatrix <- diag(x = 1, nrow = 3, ncol = 3) # Matrice identité
+CorrMatrix[1, 3] <- 0.5 # Seuls les titres 1 et 3 sont corrélés.
+CorrMatrix[3, 1] <- 0.5
+alpha = 0.01
+Profit <- c(0, 0, 0)
+
+VaR <- Analytic_VaR (alpha, Composition, CorrMatrix, Volatilities,                           Prices, Profit)
+```
+
+
+```{r}
+VaR
+```
+
+# Traçons la VaR en fonction des seuils alpha
+
+```{r}
+Alpha <- seq(from = 0.01, to = 0.1, by = 0.01)
+Values_at_risk <- rep(0, length(Alpha))
+for(k in 1:length(Alpha))
+{
+  Values_at_risk[k] <- Analytic_VaR (Alpha[k], Composition, CorrMatrix,                                        Volatilities, Prices, Profit)
+}
+
+print(Values_at_risk)
+```
+
+```{r}
+Plot <- plot(x = Alpha, y = Values_at_risk, type = "l", col = 'red')
+```
+
+# Plus l'intervalle de confiance augmente (c-à-d plus le seuil est petit), plus la VaR est grande.
+
+
+# Un graphe interactif
+
+```{r}
+library(ggplot2)
+library(plotly)
+```
+
+```{r}
+data <- data.frame("alpha" = Alpha, "VaRs" = Values_at_risk)
+data
+```
+
+
+```{r}
+Plot <- plot(data)
+```
+
+
+```{r}
+S <- 1.58
+P_CAN <- 0.9917
+P_USA <- 0.9931
+
+s_S <- 1.0637*10^(-5)
+s_P_CAN <- 1.1*10^(-5)
+s_P_USA <- 0.03230684
+
+rho_SP_CAN <- 0.092007741
+rho_SP_USA <- 0.038434537
+rho_PCAN_PUSA <- 0.106729337
+
+Expo_P_CAN <- P_CAN^2 * s_P_CAN^2 + 2*rho_PCAN_PUSA*s_P_CAN*s_P_USA*P_USA*P_CAN + 2*rho_SP_CAN*s_P_CAN*P_CAN*s_S*S
+
+Expo_P_USA <- P_USA^2 * s_P_USA^2 + 2*rho_PCAN_PUSA*s_P_CAN*s_P_USA*P_USA*P_CAN + 2*rho_SP_USA*s_P_USA*s_S*S*P_USA
+
+Expo_S <- s_S^2 * S^2 + 2*rho_SP_USA*s_S*s_P_USA*S*P_USA + 2*rho_SP_CAN*s_S*s_P_CAN*S*P_CAN
+
+
+
+```
+
+
+```{r}
+q <- qnorm(0.95, 0, 1)
+q
+VaR <- q * sqrt(Expo_P_CAN+Expo_P_USA+Expo_S)
+VaR
+```
+
+
+
+
+
